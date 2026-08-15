@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>真心话大冒险 · 原图卡背</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1210;
+      color: #f5e6d3;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+      overflow-x: hidden;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
+      color: #d4a84b;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .subtitle {
+      font-size: 0.8rem;
+      color: #8a7a6a;
+      margin-bottom: 28px;
+    }
+
+    .deck-area {
+      position: relative;
+      width: 200px;
+      height: 300px;
+      margin-bottom: 36px;
+      perspective: 1000px;
+    }
+
+    .card {
+      position: absolute;
+      width: 200px;
+      height: 300px;
+      border-radius: 12px;
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      backface-visibility: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 18px;
+      overflow: hidden;
+    }
+
+    /* 用原图做卡背 */
+    .back-truth {
+      background: url('card-truth-back.jpg') center/cover no-repeat;
+    }
+    .back-dare {
+      background: url('card-dare-back.jpg') center/cover no-repeat;
+    }
+
+    /* 正面 */
+    .front {
+      background: #2a1f1c;
+      border: 2px solid #c9a227;
+      transform: rotateY(180deg);
+      color: #f5e6d3;
+      text-align: center;
+    }
+    .front.dare-front {
+      background: #f7f0e6;
+      border-color: #b08d6a;
+      color: #4a3528;
+    }
+    .front .type-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      margin-bottom: 14px;
+      opacity: 0.75;
+    }
+    .front .content {
+      font-size: 0.95rem;
+      line-height: 1.55;
+      font-weight: 500;
+    }
+
+    .card.flipped {
+      transform: rotateY(180deg);
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      max-width: 280px;
+    }
+    .mode-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1.5px solid #5a4030;
+      background: #2a1f1c;
+      color: #c9a227;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: #c9a227;
+      color: #1a1210;
+      border-color: #c9a227;
+    }
+    .mode-btn.dare-mode.active {
+      background: #b08d6a;
+      border-color: #b08d6a;
+      color: #1a1210;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+    }
+    .btn-shuffle {
+      background: #3d2a22;
+      color: #d4a84b;
+      border: 1px solid #5a4030;
+    }
+    .btn-draw {
+      background: linear-gradient(135deg, #c9a227, #a67c00);
+      color: #1a1210;
+    }
+    .btn-draw:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: #6a5a4a;
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    .drawn-card-wrap {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.7);
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .drawn-card-wrap.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .drawn-card-wrap .card {
+      position: relative;
+      width: 220px;
+      height: 330px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>真心话 · 大冒险</h1>
+  <div class="subtitle">洗牌 → 抽卡 → 翻开</div>
+
+  <div class="deck-area" id="deckArea"></div>
+
+  <div class="controls">
+    <div class="mode-row">
+      <button class="mode-btn active" id="modeTruth" onclick="setMode('truth')">真心话</button>
+      <button class="mode-btn dare-mode" id="modeDare" onclick="setMode('dare')">大冒险</button>
+    </div>
+    <button class="action-btn btn-shuffle" onclick="shuffleDeck()">洗牌</button>
+    <button class="action-btn btn-draw" id="btnDraw" onclick="drawCard()" disabled>抽一张</button>
+    <div class="hint" id="hint">先洗牌，再抽卡</div>
+  </div>
+
+  <div class="drawn-card-wrap" id="drawnWrap">
+    <div class="card" id="drawnCard" onclick="flipDrawn()">
+      <div class="card-face back-truth" id="drawnBack"></div>
+      <div class="card-face front" id="drawnFront">
+        <div class="type-label" id="drawnType">真心话</div>
+        <div class="content" id="drawnContent">内容</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TRUTH_POOL = [
+      '最近一次想我的时候在做什么？',
+      '有没有对我撒过谎？是什么？',
+      '最想被我怎么对待？',
+      '现在最想听我说哪句话？',
+      '有没有偷偷做过关于我的梦？',
+      '最喜欢我身体的哪个部位？',
+      '有没有在公共场合想过我？',
+      '愿意为我放弃什么？',
+      '最羞耻却又觉得刺激的想法是什么？',
+      '如果只能留一个关于我的记忆，会留哪个？',
+      '有没有羡慕过别人的关系？为什么？',
+      '现在心跳快吗？因为什么？',
+      '最想试却还没开口的事是什么？',
+      '被我盯着看的时候会想什么？',
+      '有没有在意过我对别人比对你好？',
+      '说出一个你从没告诉过我的秘密。',
+      '如果今天只能做一件事，你选什么？',
+      '最怕我发现你的哪一面？',
+      '有没有想象过被我完全控制的一天？',
+      '现在最想被我摸哪里？',
+      '上次自己解决的时候想的是谁？',
+      '愿意让我看你的手机吗？为什么？',
+      '有没有吃过我的醋？什么时候？',
+      '最想听我用什么样的语气叫你？',
+      '如果我现在走过来，你希望我做什么？',
+      '有没有假装不在意其实很在意的事？',
+      '说出你对我的一个不满。',
+      '最想和我一起做却还没做成的事？',
+      '有没有在别人面前掩饰过对我的喜欢？',
+      '现在如果让你选一个姿势，选哪个？',
+      '愿意把今天的主动权完全交给我吗？',
+      '最后问一次：你现在最想要什么？'
+    ];
+
+    const DARE_POOL = [
+      '保持现在的姿势，一分钟不许动。',
+      '用最骚的声音说一句「我想要」。',
+      '自己把手伸进衣服里，摸到我叫停。',
+      '跪下来，看着我的眼睛说三句听话的话。',
+      '把手机给我，让我翻最近的聊天记录。',
+      '当众（或对着镜头）做十个深蹲。',
+      '用牙齿拉开一件衣物。',
+      '让我在你身上留下一个吻痕。',
+      '自己选一个道具，用一分钟。',
+      '把双腿打开，保持三十秒。',
+      '用气音在我耳边说你现在的感觉。',
+      '自己拍一张现在的表情发给我。',
+      '让我蒙上你的眼睛一分钟。',
+      '背对我，慢慢把上衣拉高。',
+      '数到三十，中途不许夹腿。',
+      '用手指比出你想被进入的深度。',
+      '主动亲我指定的地方十秒。',
+      '说出三个你愿意被惩罚的方式。',
+      '保持跪姿，直到下一轮抽卡。',
+      '让我决定你接下来一小时的称呼。',
+      '自己把头发撩起来，露出脖子。',
+      '用最慢的速度脱一件衣服。',
+      '被我盯着，自己摸到湿。',
+      '重复我说的每一句话，直到我满意。',
+      '把双手放在身后，一分钟不许动。',
+      '选一个你最想被控制的场景说出来。',
+      '让我在你身上写一个字。',
+      '主动坐到我腿上，不许自己动。',
+      '用眼神求我做一件事，不许说话。',
+      '把今天最想被满足的点说清楚。',
+      '接受我接下来的一个临时指令。',
+      '最后：自己说「我准备好了」。'
+    ];
+
+    let mode = 'truth';
+    let shuffled = false;
+    let isAnimating = false;
+
+    function buildDeck() {
+      const area = document.getElementById('deckArea');
+      area.innerHTML = '';
+      for (let i = 0; i < 5; i++) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.zIndex = 5 - i;
+        card.style.transform = `translateY(${i * 2}px) translateX(${i % 2 === 0 ? i : -i}px)`;
+        const back = document.createElement('div');
+        back.className = 'card-face ' + (mode === 'truth' ? 'back-truth' : 'back-dare');
+        card.appendChild(back);
+        area.appendChild(card);
+      }
+    }
+
+    function setMode(m) {
+      if (isAnimating) return;
+      mode = m;
+      document.getElementById('modeTruth').classList.toggle('active', m === 'truth');
+      document.getElementById('modeDare').classList.toggle('active', m === 'dare');
+      shuffled = false;
+      document.getElementById('btnDraw').disabled = true;
+      document.getElementById('hint').textContent = '先洗牌，再抽卡';
+      buildDeck();
+    }
+
+    function shuffleDeck() {
+      if (isAnimating) return;
+      isAnimating = true;
+      shuffled = false;
+      document.getElementById('btnDraw').disabled = true;
+      document.getElementById('hint').textContent = '洗牌中…';
+
+      const cards = document.querySelectorAll('#deckArea .card');
+      let count = 0;
+      const total = 12;
+
+      const interval = setInterval(() => {
+        cards.forEach((c) => {
+          const rx = (Math.random() - 0.5) * 60;
+          const ry = (Math.random() - 0.5) * 40;
+          const rot = (Math.random() - 0.5) * 24;
+          c.style.transition = 'transform 0.12s ease-out';
+          c.style.transform = `translate(${rx}px, ${ry}px) rotate(${rot}deg)`;
+        });
+        count++;
+        if (count >= total) {
+          clearInterval(interval);
+          setTimeout(() => {
+            cards.forEach((c, i) => {
+              c.style.transition = 'transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)';
+              c.style.transform = `translateY(${i * 2}px) translateX(${i % 2 === 0 ? i : -i}px)`;
+            });
+            setTimeout(() => {
+              isAnimating = false;
+              shuffled = true;
+              document.getElementById('btnDraw').disabled = false;
+              document.getElementById('hint').textContent = '可以抽卡了';
+            }, 380);
+          }, 80);
+        }
+      }, 90);
+    }
+
+    function drawCard() {
+      if (!shuffled || isAnimating) return;
+      isAnimating = true;
+
+      const pool = mode === 'truth' ? TRUTH_POOL : DARE_POOL;
+      const text = pool[Math.floor(Math.random() * pool.length)];
+
+      const wrap = document.getElementById('drawnWrap');
+      const card = document.getElementById('drawnCard');
+      const back = document.getElementById('drawnBack');
+      const front = document.getElementById('drawnFront');
+      const typeEl = document.getElementById('drawnType');
+      const contentEl = document.getElementById('drawnContent');
+
+      card.classList.remove('flipped');
+      back.className = 'card-face ' + (mode === 'truth' ? 'back-truth' : 'back-dare');
+      front.className = 'card-face front' + (mode === 'dare' ? ' dare-front' : '');
+      typeEl.textContent = mode === 'truth' ? '真心话' : '大冒险';
+      contentEl.textContent = text;
+
+      wrap.classList.add('show');
+      isAnimating = false;
+      document.getElementById('hint').textContent = '点击卡牌翻开';
+    }
+
+    function flipDrawn() {
+      document.getElementById('drawnCard').classList.add('flipped');
+      document.getElementById('hint').textContent = '再点空白处关闭';
+    }
+
+    document.getElementById('drawnWrap').addEventListener('click', (e) => {
+      if (e.target.id === 'drawnWrap') {
+        document.getElementById('drawnWrap').classList.remove('show');
+        document.getElementById('drawnCard').classList.remove('flipped');
+        document.getElementById('hint').textContent = shuffled ? '可以继续抽' : '先洗牌，再抽卡';
+      }
+    });
+
+    buildDeck();
+  </script>
+</body>
+</html>
